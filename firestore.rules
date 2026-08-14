@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /mesas_comandas/{mesaId} {
+      allow read: if true;
+      allow update: if true;
+      allow create, delete: if request.auth != null;
+    }
+    match /produtos/{produtoId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    match /vendas/{vendaId} {
+      allow read, create: if request.auth != null;
+      allow update, delete: if request.auth.token.email == "jjoserobertorocharocha@gmail.com";
+    }
+    match /configuracoes/{docId} {
+      allow read: if true;
+      allow write: if request.auth.token.email == "jjoserobertorocharocha@gmail.com";
+    }
+  }
+}

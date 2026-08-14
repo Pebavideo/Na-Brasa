@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "vendas",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "dataString", "order": "ASCENDING" },
+        { "fieldPath": "dataFechamento", "order": "DESCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
