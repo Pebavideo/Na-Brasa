@@ -17,6 +17,9 @@ import { SUPER_ADMIN_EMAIL } from '../types'
 
 const ATENDENTE_STORAGE_KEY = 'na-brasa:atendente'
 
+/** Identificação usada para o super admin quando ele não seleciona um nome na lista. */
+const ATENDENTE_PADRAO_ADMIN = 'Admin'
+
 interface AuthContextValue {
   user: User | null
   loading: boolean
@@ -33,7 +36,7 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
-  const [atendente, setAtendenteState] = useState<string | null>(() =>
+  const [atendenteSelecionado, setAtendenteState] = useState<string | null>(() =>
     localStorage.getItem(ATENDENTE_STORAGE_KEY),
   )
 
@@ -64,18 +67,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth)
   }
 
+  const isSuperAdmin = user?.email === SUPER_ADMIN_EMAIL
+
+  // O super admin nunca é obrigado a escolher um nome na lista: se ele não
+  // selecionou nenhum, os lançamentos são identificados como "Admin".
+  const atendente = atendenteSelecionado ?? (isSuperAdmin ? ATENDENTE_PADRAO_ADMIN : null)
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       loading,
-      isSuperAdmin: user?.email === SUPER_ADMIN_EMAIL,
+      isSuperAdmin,
       atendente,
       setAtendente,
       limparAtendente,
       login,
       logout,
     }),
-    [user, loading, atendente],
+    [user, loading, isSuperAdmin, atendente],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

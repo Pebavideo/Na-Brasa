@@ -1,15 +1,15 @@
 import { Link, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Loading } from './Loading'
-import { AttendantSelector } from './AttendantSelector'
 
 export function AdminRoute() {
-  const { user, loading, atendente, isSuperAdmin } = useAuth()
+  const { user, loading, isSuperAdmin } = useAuth()
 
   if (loading) return <Loading texto="Verificando sessão..." />
   if (!user) return <Navigate to="/login" replace />
-  if (!atendente) return <AttendantSelector />
 
+  // A rota /admin nunca é bloqueada por falta de atendente selecionado —
+  // o único requisito aqui é ser o super admin da loja.
   if (!isSuperAdmin) {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 p-6 text-center">
