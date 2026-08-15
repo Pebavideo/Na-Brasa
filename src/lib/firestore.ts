@@ -30,12 +30,22 @@ function calcularTotal(itens: ItemComanda[]): number {
   return itens.reduce((soma, item) => soma + item.precoUnit * item.quantidade, 0)
 }
 
+/** O Firestore rejeita valores `undefined` — remove esses campos antes de gravar. */
+function removerCamposIndefinidos<T extends object>(dados: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(dados).filter(([, valor]) => valor !== undefined),
+  ) as Partial<T>
+}
+
 // ---------- Mesas / Comandas ----------
 
 export async function criarMesa(identificador: string): Promise<string> {
+  const nome = identificador.trim()
+  if (!nome) throw new Error('Identificador da mesa é obrigatório')
+
   const novaMesa = doc(mesasRef)
   await setDoc(novaMesa, {
-    identificador,
+    identificador: nome,
     status: 'livre',
     totalAtual: 0,
     itens: [],
@@ -199,6 +209,9 @@ export async function fecharComanda({
   atendenteFechamento,
   valorRecebido,
 }: FecharComandaParams): Promise<void> {
+  if (!atendenteFechamento.trim()) throw new Error('Atendente responsável é obrigatório')
+  if (!mesa.itens.length || mesa.totalAtual <= 0) throw new Error('Comanda vazia não pode ser fechada')
+
   const batch = writeBatch(db)
 
   const novaVendaRef = doc(vendasRef)
@@ -240,14 +253,25 @@ export async function fecharComanda({
 // ---------- Produtos ----------
 
 export async function criarProduto(produto: Omit<Produto, 'id'>): Promise<void> {
-  await addDoc(produtosRef, produto)
+  const nome = produto.nome.trim()
+  if (!nome) throw new Error('Nome do produto é obrigatório')
+  if (!Number.isFinite(produto.preco) || produto.preco <= 0) {
+    throw new Error('Preço do produto deve ser maior que zero')
+  }
+  await addDoc(produtosRef, { ...produto, nome })
 }
 
 export async function atualizarProduto(
   produtoId: string,
   dados: Partial<Omit<Produto, 'id'>>,
 ): Promise<void> {
-  await updateDoc(doc(produtosRef, produtoId), dados)
+  if (dados.nome !== undefined && !dados.nome.trim()) {
+    throw new Error('Nome do produto é obrigatório')
+  }
+  if (dados.preco !== undefined && (!Number.isFinite(dados.preco) || dados.preco <= 0)) {
+    throw new Error('Preço do produto deve ser maior que zero')
+  }
+  await updateDoc(doc(produtosRef, produtoId), removerCamposIndefinidos(dados))
 }
 
 export async function excluirProduto(produtoId: string): Promise<void> {
@@ -259,5 +283,5 @@ export async function excluirProduto(produtoId: string): Promise<void> {
 export async function atualizarConfiguracoes(
   dados: Partial<Configuracoes>,
 ): Promise<void> {
-  await setDoc(configDocRef, dados, { merge: true })
+  await setDoc(configDocRef, removerCamposIndefinidos(dados), { merge: true })
 }

@@ -7,24 +7,48 @@ export function AdminAtendentes() {
   const { config, loading } = useConfiguracoes()
   const [nome, setNome] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [removendo, setRemovendo] = useState<string | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
 
   const atendentes = config?.atendentes ?? []
 
   const adicionar = async (event: FormEvent) => {
     event.preventDefault()
+    setErro(null)
+
     const nomeLimpo = nome.trim()
-    if (!nomeLimpo || atendentes.includes(nomeLimpo)) return
+    if (!nomeLimpo) {
+      setErro('Informe o nome do atendente.')
+      return
+    }
+    if (atendentes.includes(nomeLimpo)) {
+      setErro('Esse atendente já está cadastrado.')
+      return
+    }
+
     setSalvando(true)
     try {
       await atualizarConfiguracoes({ atendentes: [...atendentes, nomeLimpo] })
       setNome('')
+    } catch {
+      setErro('Não foi possível adicionar o atendente. Tente novamente.')
     } finally {
       setSalvando(false)
     }
   }
 
   const remover = async (alvo: string) => {
-    await atualizarConfiguracoes({ atendentes: atendentes.filter((n) => n !== alvo) })
+    if (removendo) return
+    if (!confirm(`Remover "${alvo}" da lista de atendentes?`)) return
+    setRemovendo(alvo)
+    setErro(null)
+    try {
+      await atualizarConfiguracoes({ atendentes: atendentes.filter((n) => n !== alvo) })
+    } catch {
+      setErro('Não foi possível remover o atendente. Tente novamente.')
+    } finally {
+      setRemovendo(null)
+    }
   }
 
   if (loading) return <Loading texto="Carregando atendentes..." />
@@ -44,9 +68,13 @@ export function AdminAtendentes() {
           disabled={salvando}
           className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-60"
         >
-          Adicionar
+          {salvando ? 'Salvando...' : 'Adicionar'}
         </button>
       </form>
+
+      {erro && (
+        <p className="rounded-lg bg-red-50 p-2 text-center text-sm text-red-600">{erro}</p>
+      )}
 
       <div className="rounded-xl bg-white p-4 shadow-sm">
         {atendentes.length === 0 ? (
@@ -61,8 +89,9 @@ export function AdminAtendentes() {
                 {atendente}
                 <button
                   type="button"
+                  disabled={removendo === atendente}
                   onClick={() => void remover(atendente)}
-                  className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-red-500"
+                  className="flex h-6 w-6 items-center justify-center rounded-full bg-white text-red-500 disabled:opacity-40"
                 >
                   &times;
                 </button>

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { fecharComanda } from '../lib/firestore'
 import { formatarMoeda } from '../lib/utils'
+import { formatarMoedaInput, paraNumeroMoeda } from '../lib/mascaras'
 import { PixQRCode } from './PixQRCode'
 import { Loading } from './Loading'
 import type { FormaPagamento, MesaComanda } from '../types'
@@ -28,8 +29,7 @@ export function Checkout({ mesa, atendenteFechamento, onFechado, onCancelar }: C
   const [erro, setErro] = useState<string | null>(null)
 
   const troco = useMemo(() => {
-    const recebido = Number(valorRecebido.replace(',', '.'))
-    if (Number.isNaN(recebido)) return 0
+    const recebido = paraNumeroMoeda(valorRecebido)
     return Math.max(0, recebido - mesa.totalAtual)
   }, [valorRecebido, mesa.totalAtual])
 
@@ -38,7 +38,7 @@ export function Checkout({ mesa, atendenteFechamento, onFechado, onCancelar }: C
     setProcessando(true)
     setErro(null)
     try {
-      const recebido = forma === 'DINHEIRO' ? Number(valorRecebido.replace(',', '.')) : undefined
+      const recebido = forma === 'DINHEIRO' ? paraNumeroMoeda(valorRecebido) : undefined
       if (forma === 'DINHEIRO' && (!recebido || recebido < mesa.totalAtual)) {
         setErro('Valor recebido é menor que o total da comanda.')
         setProcessando(false)
@@ -62,7 +62,12 @@ export function Checkout({ mesa, atendenteFechamento, onFechado, onCancelar }: C
       <div className="flex max-h-[90svh] w-full max-w-md flex-col overflow-y-auto rounded-t-2xl bg-zinc-50 p-5 sm:rounded-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-bold text-zinc-900">Fechar comanda — {mesa.identificador}</h2>
-          <button type="button" onClick={onCancelar} className="text-2xl leading-none text-zinc-400">
+          <button
+            type="button"
+            disabled={processando}
+            onClick={onCancelar}
+            className="text-2xl leading-none text-zinc-400 disabled:opacity-40"
+          >
             &times;
           </button>
         </div>
@@ -102,14 +107,17 @@ export function Checkout({ mesa, atendenteFechamento, onFechado, onCancelar }: C
         {forma === 'DINHEIRO' && (
           <div className="flex flex-col gap-3 rounded-xl bg-white p-4 shadow-sm">
             <label className="text-sm font-semibold text-zinc-600">Valor recebido</label>
-            <input
-              autoFocus
-              inputMode="decimal"
-              placeholder="0,00"
-              value={valorRecebido}
-              onChange={(event) => setValorRecebido(event.target.value)}
-              className="rounded-lg border border-zinc-200 px-3 py-3 text-lg outline-none focus:border-orange-500"
-            />
+            <div className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-3 focus-within:border-orange-500">
+              <span className="text-lg text-zinc-400">R$</span>
+              <input
+                autoFocus
+                inputMode="decimal"
+                placeholder="0,00"
+                value={valorRecebido}
+                onChange={(event) => setValorRecebido(formatarMoedaInput(event.target.value))}
+                className="w-full text-lg outline-none"
+              />
+            </div>
             <div className="flex items-center justify-between text-sm text-zinc-500">
               <span>Troco</span>
               <span className="text-lg font-bold text-emerald-600">{formatarMoeda(troco)}</span>
@@ -131,8 +139,9 @@ export function Checkout({ mesa, atendenteFechamento, onFechado, onCancelar }: C
           <div className="mt-4 flex gap-2">
             <button
               type="button"
+              disabled={processando}
               onClick={() => setForma(null)}
-              className="flex-1 rounded-xl bg-zinc-200 px-4 py-3 font-semibold text-zinc-700"
+              className="flex-1 rounded-xl bg-zinc-200 px-4 py-3 font-semibold text-zinc-700 disabled:opacity-60"
             >
               Voltar
             </button>

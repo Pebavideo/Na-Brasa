@@ -16,6 +16,7 @@ export function Comanda() {
   const { atendente, isSuperAdmin } = useAuth()
   const [mostrarCheckout, setMostrarCheckout] = useState(false)
   const [processandoItem, setProcessandoItem] = useState<string | null>(null)
+  const [excluindoMesa, setExcluindoMesa] = useState(false)
 
   const categorias = useMemo(() => agruparPorCategoria(produtos), [produtos])
 
@@ -45,10 +46,16 @@ export function Comanda() {
   }
 
   const handleExcluirMesa = async () => {
-    if (!mesaId) return
+    if (!mesaId || excluindoMesa) return
     if (!confirm('Excluir esta mesa permanentemente?')) return
-    await excluirMesa(mesaId)
-    navigate('/mesas')
+    setExcluindoMesa(true)
+    try {
+      await excluirMesa(mesaId)
+      navigate('/mesas')
+    } catch {
+      alert('Não foi possível excluir a mesa. Tente novamente.')
+      setExcluindoMesa(false)
+    }
   }
 
   if (loading || carregandoProdutos) return <Loading texto="Carregando comanda..." />
@@ -78,8 +85,13 @@ export function Comanda() {
           <h1 className="text-xl font-bold text-zinc-900">{mesa.identificador}</h1>
         </div>
         {isSuperAdmin && mesa.status === 'livre' && (
-          <button type="button" onClick={() => void handleExcluirMesa()} className="text-xs font-semibold text-red-500">
-            Excluir mesa
+          <button
+            type="button"
+            disabled={excluindoMesa}
+            onClick={() => void handleExcluirMesa()}
+            className="text-xs font-semibold text-red-500 disabled:opacity-50"
+          >
+            {excluindoMesa ? 'Excluindo...' : 'Excluir mesa'}
           </button>
         )}
       </div>

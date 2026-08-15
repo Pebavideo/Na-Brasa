@@ -2,14 +2,28 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useConfiguracoes } from '../../hooks/useConfiguracoes'
 import { Loading } from '../../components/Loading'
 import { atualizarConfiguracoes } from '../../lib/firestore'
-import type { Configuracoes, TipoChavePix } from '../../types'
+import {
+  aplicarMascaraChavePix,
+  formatarExibicaoChavePix,
+  normalizarChavePix,
+  validarChavePix,
+} from '../../lib/mascaras'
+import type { TipoChavePix } from '../../types'
 
 const TIPOS_CHAVE: TipoChavePix[] = ['CPF', 'CNPJ', 'TELEFONE', 'EMAIL', 'ALEATORIA']
 
-const vazio: Omit<Configuracoes, 'atendentes'> = {
+const PLACEHOLDER_POR_TIPO: Record<TipoChavePix, string> = {
+  CPF: '000.000.000-00',
+  CNPJ: '00.000.000/0000-00',
+  TELEFONE: '(00) 00000-0000',
+  EMAIL: 'nome@exemplo.com',
+  ALEATORIA: 'Chave aleatória (UUID)',
+}
+
+const vazio = {
   nomeLoja: '',
-  chavePix: '',
-  tipoChavePix: 'CPF',
+  tipoChavePix: 'CPF' as TipoChavePix,
+  chavePixExibicao: '',
   titularPix: '',
   cidadePix: '',
 }
@@ -19,26 +33,64 @@ export function AdminConfig() {
   const [form, setForm] = useState(vazio)
   const [salvando, setSalvando] = useState(false)
   const [salvo, setSalvo] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
     if (config) {
       setForm({
         nomeLoja: config.nomeLoja ?? '',
-        chavePix: config.chavePix ?? '',
         tipoChavePix: config.tipoChavePix ?? 'CPF',
+        chavePixExibicao: config.chavePix
+          ? formatarExibicaoChavePix(config.tipoChavePix ?? 'CPF', config.chavePix)
+          : '',
         titularPix: config.titularPix ?? '',
         cidadePix: config.cidadePix ?? '',
       })
     }
   }, [config])
 
+  const handleTrocarTipo = (tipo: TipoChavePix) => {
+    // Formatos diferentes não são compatíveis entre si — evita carregar uma
+    // máscara antiga (ex: CPF) sobre um novo tipo (ex: telefone).
+    setForm((f) => ({ ...f, tipoChavePix: tipo, chavePixExibicao: '' }))
+  }
+
+  const handleChavePixChange = (valorDigitado: string) => {
+    setForm((f) => ({ ...f, chavePixExibicao: aplicarMascaraChavePix(f.tipoChavePix, valorDigitado) }))
+  }
+
   const handleSalvar = async (event: FormEvent) => {
     event.preventDefault()
+    setErro(null)
+
+    const nomeLoja = form.nomeLoja.trim()
+    const titularPix = form.titularPix.trim()
+    const cidadePix = form.cidadePix.trim()
+
+    if (!nomeLoja || !titularPix || !cidadePix) {
+      setErro('Preencha nome da loja, titular e cidade.')
+      return
+    }
+
+    const erroChave = validarChavePix(form.tipoChavePix, form.chavePixExibicao)
+    if (erroChave) {
+      setErro(erroChave)
+      return
+    }
+
     setSalvando(true)
     try {
-      await atualizarConfiguracoes(form)
+      await atualizarConfiguracoes({
+        nomeLoja,
+        tipoChavePix: form.tipoChavePix,
+        chavePix: normalizarChavePix(form.tipoChavePix, form.chavePixExibicao),
+        titularPix,
+        cidadePix,
+      })
       setSalvo(true)
       setTimeout(() => setSalvo(false), 2000)
+    } catch {
+      setErro('Não foi possível salvar as configurações. Tente novamente.')
     } finally {
       setSalvando(false)
     }
@@ -63,7 +115,7 @@ export function AdminConfig() {
           <label className="text-xs font-semibold text-zinc-500">Tipo de chave Pix</label>
           <select
             value={form.tipoChavePix}
-            onChange={(e) => setForm((f) => ({ ...f, tipoChavePix: e.target.value as TipoChavePix }))}
+            onChange={(e) => handleTrocarTipo(e.target.value as TipoChavePix)}
             className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
           >
             {TIPOS_CHAVE.map((tipo) => (
@@ -77,8 +129,15 @@ export function AdminConfig() {
           <label className="text-xs font-semibold text-zinc-500">Chave Pix</label>
           <input
             required
-            value={form.chavePix}
-            onChange={(e) => setForm((f) => ({ ...f, chavePix: e.target.value }))}
+            type={form.tipoChavePix === 'EMAIL' ? 'email' : 'text'}
+            inputMode={
+              form.tipoChavePix === 'CPF' || form.tipoChavePix === 'CNPJ' || form.tipoChavePix === 'TELEFONE'
+                ? 'numeric'
+                : 'text'
+            }
+            value={form.chavePixExibicao}
+            onChange={(e) => handleChavePixChange(e.target.value)}
+            placeholder={PLACEHOLDER_POR_TIPO[form.tipoChavePix]}
             className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
           />
         </div>
@@ -104,6 +163,10 @@ export function AdminConfig() {
           />
         </div>
       </div>
+
+      {erro && (
+        <p className="rounded-lg bg-red-50 p-2 text-center text-sm text-red-600">{erro}</p>
+      )}
 
       <button
         type="submit"
