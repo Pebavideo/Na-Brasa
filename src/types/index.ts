@@ -59,6 +59,8 @@ export interface MesaComanda {
   totalAtual: number
   itens: ItemComanda[]
   ultimaAtualizacao: Timestamp
+  /** Garçom/atendente vinculado à mesa no momento da abertura. */
+  atendenteResponsavel?: string
 }
 
 export interface ItemVenda {

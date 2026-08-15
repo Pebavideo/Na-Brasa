@@ -41,9 +41,10 @@ function removerCamposIndefinidos<T extends object>(dados: T): Partial<T> {
 
 // ---------- Mesas / Comandas ----------
 
-export async function criarMesa(identificador: string): Promise<string> {
+export async function criarMesa(identificador: string, atendenteResponsavel?: string): Promise<string> {
   const nome = identificador.trim()
   if (!nome) throw new Error('Identificador da mesa é obrigatório')
+  const responsavel = atendenteResponsavel?.trim() || undefined
 
   const novaMesa = doc(mesasRef)
   await setDoc(novaMesa, {
@@ -52,6 +53,7 @@ export async function criarMesa(identificador: string): Promise<string> {
     totalAtual: 0,
     itens: [],
     ultimaAtualizacao: serverTimestamp(),
+    ...(responsavel ? { atendenteResponsavel: responsavel } : {}),
   })
   return novaMesa.id
 }
