@@ -12,6 +12,14 @@ import type { TipoChavePix } from '../../types'
 
 const TIPOS_CHAVE: TipoChavePix[] = ['CPF', 'CNPJ', 'TELEFONE', 'EMAIL', 'ALEATORIA']
 
+const LABEL_POR_TIPO: Record<TipoChavePix, string> = {
+  CPF: 'CPF',
+  CNPJ: 'CNPJ',
+  TELEFONE: 'Telefone',
+  EMAIL: 'E-mail',
+  ALEATORIA: 'Aleatória',
+}
+
 const PLACEHOLDER_POR_TIPO: Record<TipoChavePix, string> = {
   CPF: '000.000.000-00',
   CNPJ: '00.000.000/0000-00',
@@ -96,6 +104,11 @@ export function AdminConfig() {
     }
   }
 
+  // Validação em tempo real: só acusa erro depois que o lojista começa a digitar.
+  const erroChaveEmTempoReal = form.chavePixExibicao
+    ? validarChavePix(form.tipoChavePix, form.chavePixExibicao)
+    : null
+
   if (loading) return <Loading texto="Carregando configurações..." />
 
   return (
@@ -120,7 +133,7 @@ export function AdminConfig() {
           >
             {TIPOS_CHAVE.map((tipo) => (
               <option key={tipo} value={tipo}>
-                {tipo}
+                {LABEL_POR_TIPO[tipo]}
               </option>
             ))}
           </select>
@@ -138,8 +151,14 @@ export function AdminConfig() {
             value={form.chavePixExibicao}
             onChange={(e) => handleChavePixChange(e.target.value)}
             placeholder={PLACEHOLDER_POR_TIPO[form.tipoChavePix]}
-            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm outline-none focus:border-orange-500"
+            aria-invalid={erroChaveEmTempoReal ? 'true' : 'false'}
+            className={`w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-orange-500 ${
+              erroChaveEmTempoReal ? 'border-red-300' : 'border-zinc-200'
+            }`}
           />
+          {erroChaveEmTempoReal && (
+            <p className="mt-1 text-xs text-red-500">{erroChaveEmTempoReal}</p>
+          )}
         </div>
       </div>
 
@@ -170,7 +189,7 @@ export function AdminConfig() {
 
       <button
         type="submit"
-        disabled={salvando}
+        disabled={salvando || !!erroChaveEmTempoReal}
         className="mt-2 rounded-lg bg-orange-600 px-4 py-3 font-bold text-white disabled:opacity-60"
       >
         {salvo ? 'Salvo!' : salvando ? 'Salvando...' : 'Salvar configurações'}
