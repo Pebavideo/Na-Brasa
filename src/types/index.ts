@@ -32,6 +32,10 @@ export interface Produto {
   preco: number
   categoria: CategoriaProduto
   disponivel: boolean
+  /** Imagem já comprimida (base64 WebP/JPEG, client-side) ou URL. */
+  fotoUrl?: string
+  /** Ex: ingredientes, acompanhamentos. */
+  descricao?: string
 }
 
 export interface ItemComanda {
@@ -42,6 +46,8 @@ export interface ItemComanda {
   origem: OrigemItem
   atendente?: string
   horaLancamento: Timestamp
+  /** Ex: "sem cebola", "picanha mal passada". */
+  observacao?: string
 }
 
 export interface MesaComanda {
@@ -58,6 +64,7 @@ export interface ItemVenda {
   precoUnit: number
   quantidade: number
   subtotal: number
+  observacao?: string
 }
 
 export interface Venda {

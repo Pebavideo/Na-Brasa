@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { getDataString } from './utils'
+import { tamanhoBase64EmBytes } from './imagem'
 import type {
   Configuracoes,
   FormaPagamento,
@@ -58,13 +59,21 @@ export async function excluirMesa(mesaId: string): Promise<void> {
   await deleteDoc(doc(mesasRef, mesaId))
 }
 
+/**
+ * Lança um item na comanda. Itens do mesmo produto/origem/atendente COM A MESMA
+ * observação são somados numa única linha; uma observação diferente sempre vira
+ * uma linha nova, já que representa um pedido distinto (ex: "sem cebola").
+ */
 export async function adicionarItemMesa(
   mesaId: string,
   produto: Produto,
   origem: OrigemItem,
   atendente?: string,
+  quantidade = 1,
+  observacao?: string,
 ): Promise<void> {
   const mesaDocRef = doc(mesasRef, mesaId)
+  const observacaoLimpa = observacao?.trim() || undefined
 
   await runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(mesaDocRef)
@@ -77,13 +86,14 @@ export async function adicionarItemMesa(
       (item) =>
         item.produtoId === produto.id &&
         item.origem === origem &&
-        item.atendente === atendente,
+        item.atendente === atendente &&
+        (item.observacao ?? undefined) === observacaoLimpa,
     )
 
     if (indiceExistente >= 0) {
       itens[indiceExistente] = {
         ...itens[indiceExistente],
-        quantidade: itens[indiceExistente].quantidade + 1,
+        quantidade: itens[indiceExistente].quantidade + quantidade,
         horaLancamento: Timestamp.now(),
       }
     } else {
@@ -91,9 +101,10 @@ export async function adicionarItemMesa(
         produtoId: produto.id,
         nome: produto.nome,
         precoUnit: produto.preco,
-        quantidade: 1,
+        quantidade,
         origem,
         ...(atendente ? { atendente } : {}),
+        ...(observacaoLimpa ? { observacao: observacaoLimpa } : {}),
         horaLancamento: Timestamp.now(),
       })
     }
@@ -107,10 +118,20 @@ export async function adicionarItemMesa(
   })
 }
 
-/** Usado pelo autoatendimento: envia todo o carrinho do cliente de uma só vez. */
+export interface LinhaCarrinhoCliente {
+  produto: Produto
+  quantidade: number
+  observacao?: string
+}
+
+/**
+ * Usado pelo autoatendimento: envia toda a sacola do cliente de uma só vez.
+ * Assim como no lançamento do garçom, linhas com a mesma observação são
+ * somadas; observações diferentes viram linhas separadas na comanda.
+ */
 export async function enviarPedidoCliente(
   mesaId: string,
-  carrinho: { produto: Produto; quantidade: number }[],
+  carrinho: LinhaCarrinhoCliente[],
 ): Promise<void> {
   if (carrinho.length === 0) return
   const mesaDocRef = doc(mesasRef, mesaId)
@@ -123,9 +144,13 @@ export async function enviarPedidoCliente(
     const itens = [...(mesa.itens ?? [])]
     const agora = Timestamp.now()
 
-    for (const { produto, quantidade } of carrinho) {
+    for (const { produto, quantidade, observacao } of carrinho) {
+      const observacaoLimpa = observacao?.trim() || undefined
       const indiceExistente = itens.findIndex(
-        (item) => item.produtoId === produto.id && item.origem === 'CLIENTE',
+        (item) =>
+          item.produtoId === produto.id &&
+          item.origem === 'CLIENTE' &&
+          (item.observacao ?? undefined) === observacaoLimpa,
       )
       if (indiceExistente >= 0) {
         itens[indiceExistente] = {
@@ -140,6 +165,7 @@ export async function enviarPedidoCliente(
           precoUnit: produto.preco,
           quantidade,
           origem: 'CLIENTE',
+          ...(observacaoLimpa ? { observacao: observacaoLimpa } : {}),
           horaLancamento: agora,
         })
       }
@@ -159,8 +185,10 @@ export async function removerItemMesa(
   produtoId: string,
   origem: OrigemItem,
   atendente?: string,
+  observacao?: string,
 ): Promise<void> {
   const mesaDocRef = doc(mesasRef, mesaId)
+  const observacaoLimpa = observacao?.trim() || undefined
 
   await runTransaction(db, async (transaction) => {
     const snapshot = await transaction.get(mesaDocRef)
@@ -173,7 +201,8 @@ export async function removerItemMesa(
       (item) =>
         item.produtoId === produtoId &&
         item.origem === origem &&
-        item.atendente === atendente,
+        item.atendente === atendente &&
+        (item.observacao ?? undefined) === observacaoLimpa,
     )
     if (indiceExistente < 0) return
 
@@ -233,6 +262,7 @@ export async function fecharComanda({
       precoUnit: item.precoUnit,
       quantidade: item.quantidade,
       subtotal: Number((item.precoUnit * item.quantidade).toFixed(2)),
+      ...(item.observacao ? { observacao: item.observacao } : {}),
     })),
     atendenteFechamento,
     dataFechamento: serverTimestamp(),
@@ -252,13 +282,23 @@ export async function fecharComanda({
 
 // ---------- Produtos ----------
 
+/** Limite de segurança bem acima do que a compressão client-side produz (~300KB). */
+const TAMANHO_MAXIMO_FOTO_BYTES = 700 * 1024
+
+function validarFotoUrl(fotoUrl: string | undefined): void {
+  if (fotoUrl && tamanhoBase64EmBytes(fotoUrl) > TAMANHO_MAXIMO_FOTO_BYTES) {
+    throw new Error('Imagem do produto muito grande. Escolha outra foto.')
+  }
+}
+
 export async function criarProduto(produto: Omit<Produto, 'id'>): Promise<void> {
   const nome = produto.nome.trim()
   if (!nome) throw new Error('Nome do produto é obrigatório')
   if (!Number.isFinite(produto.preco) || produto.preco <= 0) {
     throw new Error('Preço do produto deve ser maior que zero')
   }
-  await addDoc(produtosRef, { ...produto, nome })
+  validarFotoUrl(produto.fotoUrl)
+  await addDoc(produtosRef, removerCamposIndefinidos({ ...produto, nome }))
 }
 
 export async function atualizarProduto(
@@ -271,6 +311,7 @@ export async function atualizarProduto(
   if (dados.preco !== undefined && (!Number.isFinite(dados.preco) || dados.preco <= 0)) {
     throw new Error('Preço do produto deve ser maior que zero')
   }
+  validarFotoUrl(dados.fotoUrl)
   await updateDoc(doc(produtosRef, produtoId), removerCamposIndefinidos(dados))
 }
 
