@@ -3,6 +3,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   runTransaction,
   serverTimestamp,
   setDoc,
@@ -56,7 +57,18 @@ export async function criarMesa(identificador: string): Promise<string> {
 }
 
 export async function excluirMesa(mesaId: string): Promise<void> {
-  await deleteDoc(doc(mesasRef, mesaId))
+  const mesaDocRef = doc(mesasRef, mesaId)
+  // Checagem de segurança independente da UI: mesmo que o botão só apareça
+  // para mesas livres, evita excluir (e perder) uma comanda com itens já
+  // lançados caso o estado na tela esteja momentaneamente desatualizado.
+  const snapshot = await getDoc(mesaDocRef)
+  if (snapshot.exists()) {
+    const mesa = snapshot.data() as MesaComanda
+    if ((mesa.itens?.length ?? 0) > 0) {
+      throw new Error('Não é possível excluir uma mesa com itens lançados.')
+    }
+  }
+  await deleteDoc(mesaDocRef)
 }
 
 /**
@@ -175,51 +187,6 @@ export async function enviarPedidoCliente(
       itens,
       totalAtual: calcularTotal(itens),
       status: 'ocupada',
-      ultimaAtualizacao: serverTimestamp(),
-    })
-  })
-}
-
-export async function removerItemMesa(
-  mesaId: string,
-  produtoId: string,
-  origem: OrigemItem,
-  atendente?: string,
-  observacao?: string,
-): Promise<void> {
-  const mesaDocRef = doc(mesasRef, mesaId)
-  const observacaoLimpa = observacao?.trim() || undefined
-
-  await runTransaction(db, async (transaction) => {
-    const snapshot = await transaction.get(mesaDocRef)
-    if (!snapshot.exists()) throw new Error('Mesa não encontrada')
-
-    const mesa = snapshot.data() as MesaComanda
-    const itens = [...(mesa.itens ?? [])]
-
-    const indiceExistente = itens.findIndex(
-      (item) =>
-        item.produtoId === produtoId &&
-        item.origem === origem &&
-        item.atendente === atendente &&
-        (item.observacao ?? undefined) === observacaoLimpa,
-    )
-    if (indiceExistente < 0) return
-
-    const itemAtual = itens[indiceExistente]
-    if (itemAtual.quantidade <= 1) {
-      itens.splice(indiceExistente, 1)
-    } else {
-      itens[indiceExistente] = {
-        ...itemAtual,
-        quantidade: itemAtual.quantidade - 1,
-      }
-    }
-
-    transaction.update(mesaDocRef, {
-      itens,
-      totalAtual: calcularTotal(itens),
-      status: itens.length > 0 ? 'ocupada' : 'livre',
       ultimaAtualizacao: serverTimestamp(),
     })
   })
