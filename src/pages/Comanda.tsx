@@ -101,6 +101,8 @@ export function Comanda() {
     )
   }
 
+  const totalItens = mesa.itens.reduce((soma, item) => soma + item.quantidade, 0)
+
   return (
     <div className="flex flex-col gap-4 pb-52">
       {/* Cabeçalho: mesa, status, garçom responsável e total parcial */}
@@ -216,7 +218,9 @@ export function Comanda() {
         <div className="mx-auto flex max-w-5xl flex-col gap-2">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs text-zinc-400">Total da comanda</p>
+              <p className="text-xs text-zinc-400">
+                {totalItens} {totalItens === 1 ? 'item' : 'itens'} · Total da comanda
+              </p>
               <p className="text-xl font-black text-zinc-900">{formatarMoeda(mesa.totalAtual)}</p>
             </div>
             <button
@@ -234,7 +238,7 @@ export function Comanda() {
               onClick={handleConfirmarPedidos}
               className="flex-1 rounded-lg bg-zinc-100 py-2 text-sm font-semibold text-zinc-700 transition active:scale-95"
             >
-              💾 Salvar Pedidos
+              💾 Salvar / Enviar Pedido
             </button>
             <button
               type="button"
