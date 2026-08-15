@@ -225,6 +225,95 @@ export async function removerItemMesa(
   })
 }
 
+export interface IdentificadorLinhaItem {
+  produtoId: string
+  origem: OrigemItem
+  atendente?: string
+  observacao?: string
+}
+
+function encontrarIndiceLinha(itens: ItemComanda[], alvo: IdentificadorLinhaItem): number {
+  const observacaoAlvo = alvo.observacao?.trim() || undefined
+  return itens.findIndex(
+    (item) =>
+      item.produtoId === alvo.produtoId &&
+      item.origem === alvo.origem &&
+      item.atendente === alvo.atendente &&
+      (item.observacao ?? undefined) === observacaoAlvo,
+  )
+}
+
+/** Remove a linha inteira da comanda (todas as unidades daquele lançamento), não apenas uma unidade. */
+export async function removerLinhaMesa(mesaId: string, alvo: IdentificadorLinhaItem): Promise<void> {
+  const mesaDocRef = doc(mesasRef, mesaId)
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(mesaDocRef)
+    if (!snapshot.exists()) throw new Error('Mesa não encontrada')
+
+    const mesa = snapshot.data() as MesaComanda
+    const itens = [...(mesa.itens ?? [])]
+    const indice = encontrarIndiceLinha(itens, alvo)
+    if (indice < 0) return
+
+    itens.splice(indice, 1)
+
+    transaction.update(mesaDocRef, {
+      itens,
+      totalAtual: calcularTotal(itens),
+      status: itens.length > 0 ? 'ocupada' : 'livre',
+      ultimaAtualizacao: serverTimestamp(),
+    })
+  })
+}
+
+/** Edita quantidade e/ou observação de uma linha já lançada. Quantidade 0 remove a linha. */
+export async function editarItemMesa(
+  mesaId: string,
+  alvo: IdentificadorLinhaItem,
+  novaQuantidade: number,
+  novaObservacao?: string,
+): Promise<void> {
+  if (!Number.isFinite(novaQuantidade) || novaQuantidade < 0) {
+    throw new Error('Quantidade inválida')
+  }
+  const mesaDocRef = doc(mesasRef, mesaId)
+  const observacaoLimpa = novaObservacao?.trim() || undefined
+
+  await runTransaction(db, async (transaction) => {
+    const snapshot = await transaction.get(mesaDocRef)
+    if (!snapshot.exists()) throw new Error('Mesa não encontrada')
+
+    const mesa = snapshot.data() as MesaComanda
+    const itens = [...(mesa.itens ?? [])]
+    const indice = encontrarIndiceLinha(itens, alvo)
+    if (indice < 0) throw new Error('Item não encontrado na comanda')
+
+    if (novaQuantidade === 0) {
+      itens.splice(indice, 1)
+    } else {
+      const itemAtualizado: ItemComanda = {
+        ...itens[indice],
+        quantidade: novaQuantidade,
+        horaLancamento: Timestamp.now(),
+      }
+      if (observacaoLimpa) {
+        itemAtualizado.observacao = observacaoLimpa
+      } else {
+        delete itemAtualizado.observacao
+      }
+      itens[indice] = itemAtualizado
+    }
+
+    transaction.update(mesaDocRef, {
+      itens,
+      totalAtual: calcularTotal(itens),
+      status: itens.length > 0 ? 'ocupada' : 'livre',
+      ultimaAtualizacao: serverTimestamp(),
+    })
+  })
+}
+
 interface FecharComandaParams {
   mesa: MesaComanda
   formaPagamento: FormaPagamento

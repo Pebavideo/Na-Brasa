@@ -15,6 +15,9 @@ dist-ssr
 # Firebase CLI deploy cache
 .firebase/
 
+# Configuração local do Claude Code (não faz parte do app)
+.claude/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
