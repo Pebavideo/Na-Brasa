@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider } from './contexts/AuthContext'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { AdminRoute } from './components/AdminRoute'
+import { CaixaRoute } from './components/CaixaRoute'
 import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
 import { Mesas } from './pages/Mesas'
@@ -30,10 +31,16 @@ function App() {
             </Route>
           </Route>
 
-          {/* Rotas exclusivas do super admin */}
-          <Route element={<AdminRoute />}>
+          {/* Caixa: exclusivo do super admin (dados financeiros consolidados) */}
+          <Route element={<CaixaRoute />}>
             <Route element={<Layout />}>
               <Route path="/caixa" element={<Caixa />} />
+            </Route>
+          </Route>
+
+          {/* Admin: qualquer usuário autenticado, protegido pelo PIN de Gerente */}
+          <Route element={<AdminRoute />}>
+            <Route element={<Layout />}>
               <Route path="/admin" element={<Admin />} />
             </Route>
           </Route>

@@ -13,6 +13,7 @@ import {
   type IdentificadorLinhaItem,
 } from '../lib/firestore'
 import { formatarMoeda } from '../lib/utils'
+import { mensagemDeErroFirestore } from '../lib/erros'
 import type { ItemComanda } from '../types'
 
 function identificarLinha(item: ItemComanda): IdentificadorLinhaItem {
@@ -128,8 +129,8 @@ export function Comanda() {
     try {
       await excluirMesa(mesaId)
       navigate('/mesas')
-    } catch {
-      alert('Não foi possível excluir a mesa. Tente novamente.')
+    } catch (erroExcluirMesa) {
+      alert(mensagemDeErroFirestore(erroExcluirMesa, 'Não foi possível excluir a mesa. Tente novamente.'))
       setExcluindoMesa(false)
     }
   }

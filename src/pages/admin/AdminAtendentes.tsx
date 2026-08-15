@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { useConfiguracoes } from '../../hooks/useConfiguracoes'
 import { Loading } from '../../components/Loading'
 import { atualizarConfiguracoes } from '../../lib/firestore'
+import { mensagemDeErroFirestore } from '../../lib/erros'
 
 export function AdminAtendentes() {
   const { config, loading } = useConfiguracoes()
@@ -30,8 +31,8 @@ export function AdminAtendentes() {
     try {
       await atualizarConfiguracoes({ atendentes: [...atendentes, nomeLimpo] })
       setNome('')
-    } catch {
-      setErro('Não foi possível adicionar o atendente. Tente novamente.')
+    } catch (erroAdicionar) {
+      setErro(mensagemDeErroFirestore(erroAdicionar, 'Não foi possível adicionar o atendente. Tente novamente.'))
     } finally {
       setSalvando(false)
     }
@@ -44,8 +45,8 @@ export function AdminAtendentes() {
     setErro(null)
     try {
       await atualizarConfiguracoes({ atendentes: atendentes.filter((n) => n !== alvo) })
-    } catch {
-      setErro('Não foi possível remover o atendente. Tente novamente.')
+    } catch (erroRemover) {
+      setErro(mensagemDeErroFirestore(erroRemover, 'Não foi possível remover o atendente. Tente novamente.'))
     } finally {
       setRemovendo(null)
     }

@@ -16,7 +16,10 @@ service cloud.firestore {
     }
     match /configuracoes/{docId} {
       allow read: if true;
-      allow write: if request.auth.token.email == "jjoserobertorocharocha@gmail.com";
+      // O Painel Admin (cardápio, Pix, atendentes, PIN de gerente) é
+      // acessível a qualquer usuário autenticado, protegido pelo PIN de
+      // Gerente na própria aplicação — não só pelo e-mail do super admin.
+      allow write: if request.auth != null;
     }
   }
 }

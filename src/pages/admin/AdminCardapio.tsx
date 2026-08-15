@@ -6,6 +6,7 @@ import { atualizarProduto, criarProduto, excluirProduto } from '../../lib/firest
 import { formatarMoeda } from '../../lib/utils'
 import { formatarMoedaInput, paraNumeroMoeda } from '../../lib/mascaras'
 import { comprimirImagem, ehDataUrl, pareceUrlDeImagem } from '../../lib/imagem'
+import { mensagemDeErroFirestore } from '../../lib/erros'
 import { CATEGORIAS, type CategoriaProduto, type Produto } from '../../types'
 
 interface FormularioProduto {
@@ -153,7 +154,7 @@ export function AdminCardapio() {
         limparFoto()
       }
     } catch (erroSalvar) {
-      setErro(erroSalvar instanceof Error ? erroSalvar.message : 'Não foi possível salvar o produto.')
+      setErro(mensagemDeErroFirestore(erroSalvar, 'Não foi possível salvar o produto.'))
     } finally {
       setSalvando(false)
     }
@@ -164,8 +165,8 @@ export function AdminCardapio() {
     setProcessandoId(produtoId)
     try {
       await atualizarProduto(produtoId, { disponivel: !disponivel })
-    } catch {
-      setErro('Não foi possível atualizar o produto. Tente novamente.')
+    } catch (erroAlternar) {
+      setErro(mensagemDeErroFirestore(erroAlternar, 'Não foi possível atualizar o produto. Tente novamente.'))
     } finally {
       setProcessandoId(null)
     }
@@ -178,8 +179,8 @@ export function AdminCardapio() {
     try {
       await excluirProduto(produtoId)
       if (editandoId === produtoId) cancelarEdicao()
-    } catch {
-      setErro('Não foi possível excluir o produto. Tente novamente.')
+    } catch (erroExcluir) {
+      setErro(mensagemDeErroFirestore(erroExcluir, 'Não foi possível excluir o produto. Tente novamente.'))
     } finally {
       setProcessandoId(null)
     }

@@ -26,15 +26,13 @@ export function Layout() {
               Mesas
             </NavLink>
             {isSuperAdmin && (
-              <>
-                <NavLink to="/caixa" className={linkClasses}>
-                  Caixa
-                </NavLink>
-                <NavLink to="/admin" className={linkClasses}>
-                  Admin
-                </NavLink>
-              </>
+              <NavLink to="/caixa" className={linkClasses}>
+                Caixa
+              </NavLink>
             )}
+            <NavLink to="/admin" className={linkClasses}>
+              Admin
+            </NavLink>
           </nav>
 
           <div className="flex items-center gap-3">

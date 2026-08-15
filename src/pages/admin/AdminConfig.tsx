@@ -9,6 +9,7 @@ import {
   validarChavePix,
 } from '../../lib/mascaras'
 import { formatoPinValido } from '../../lib/pinGerente'
+import { mensagemDeErroFirestore } from '../../lib/erros'
 import type { TipoChavePix } from '../../types'
 
 const TIPOS_CHAVE: TipoChavePix[] = ['CPF', 'CNPJ', 'TELEFONE', 'EMAIL', 'ALEATORIA']
@@ -107,8 +108,8 @@ export function AdminConfig() {
       })
       setSalvo(true)
       setTimeout(() => setSalvo(false), 2000)
-    } catch {
-      setErro('Não foi possível salvar as configurações. Tente novamente.')
+    } catch (erroSalvar) {
+      setErro(mensagemDeErroFirestore(erroSalvar, 'Não foi possível salvar as configurações. Tente novamente.'))
     } finally {
       setSalvando(false)
     }
