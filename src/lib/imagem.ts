@@ -20,6 +20,20 @@ export function tamanhoBase64EmBytes(dataUrl: string): number {
   return Math.ceil((base64.length * 3) / 4)
 }
 
+export function ehDataUrl(valor: string): boolean {
+  return valor.startsWith('data:')
+}
+
+/** Aceita apenas links http(s) bem formados — usado para o campo "Link da imagem". */
+export function pareceUrlDeImagem(valor: string): boolean {
+  try {
+    const url = new URL(valor)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
 interface OpcoesCompressao {
   larguraMaxima?: number
   qualidadeInicial?: number

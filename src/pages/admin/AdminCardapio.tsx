@@ -1,10 +1,11 @@
 import { useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { useProdutos } from '../../hooks/useProdutos'
 import { Loading } from '../../components/Loading'
+import { ImagemProduto } from '../../components/ImagemProduto'
 import { atualizarProduto, criarProduto, excluirProduto } from '../../lib/firestore'
 import { formatarMoeda } from '../../lib/utils'
 import { formatarMoedaInput, paraNumeroMoeda } from '../../lib/mascaras'
-import { comprimirImagem } from '../../lib/imagem'
+import { comprimirImagem, ehDataUrl, pareceUrlDeImagem } from '../../lib/imagem'
 import { CATEGORIAS, type CategoriaProduto, type Produto } from '../../types'
 
 interface FormularioProduto {
@@ -12,16 +13,16 @@ interface FormularioProduto {
   preco: string
   categoria: CategoriaProduto
   descricao: string
-  fotoUrl: string
   disponivel: boolean
 }
+
+type ModoFoto = 'upload' | 'link'
 
 const FORM_VAZIO: FormularioProduto = {
   nome: '',
   preco: '',
   categoria: CATEGORIAS[0] as CategoriaProduto,
   descricao: '',
-  fotoUrl: '',
   disponivel: true,
 }
 
@@ -33,9 +34,24 @@ export function AdminCardapio() {
   const [comprimindoFoto, setComprimindoFoto] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [processandoId, setProcessandoId] = useState<string | null>(null)
+
+  // Foto: upload (base64 comprimido) e link (URL externa) ficam em estados
+  // separados para não se sobrescreverem ao trocar de aba; fotoAtual é o que
+  // realmente vale, conforme o modo selecionado.
+  const [modoFoto, setModoFoto] = useState<ModoFoto>('upload')
+  const [fotoArquivo, setFotoArquivo] = useState('')
+  const [fotoLink, setFotoLink] = useState('')
   const inputFotoRef = useRef<HTMLInputElement>(null)
 
   const emEdicao = editandoId !== null
+  const fotoAtual = modoFoto === 'upload' ? fotoArquivo : fotoLink
+  const linkInvalido = modoFoto === 'link' && fotoLink.trim() !== '' && !pareceUrlDeImagem(fotoLink.trim())
+
+  const limparFoto = () => {
+    setFotoArquivo('')
+    setFotoLink('')
+    if (inputFotoRef.current) inputFotoRef.current.value = ''
+  }
 
   const iniciarEdicao = (produto: Produto) => {
     setEditandoId(produto.id)
@@ -44,17 +60,27 @@ export function AdminCardapio() {
       preco: formatarMoedaInput(String(Math.round(produto.preco * 100))),
       categoria: produto.categoria,
       descricao: produto.descricao ?? '',
-      fotoUrl: produto.fotoUrl ?? '',
       disponivel: produto.disponivel,
     })
+    // Reabre no modo em que a foto foi originalmente cadastrada.
+    if (produto.fotoUrl && !ehDataUrl(produto.fotoUrl)) {
+      setModoFoto('link')
+      setFotoLink(produto.fotoUrl)
+      setFotoArquivo('')
+    } else {
+      setModoFoto('upload')
+      setFotoArquivo(produto.fotoUrl ?? '')
+      setFotoLink('')
+    }
     setErro(null)
   }
 
   const cancelarEdicao = () => {
     setEditandoId(null)
     setForm(FORM_VAZIO)
+    setModoFoto('upload')
+    limparFoto()
     setErro(null)
-    if (inputFotoRef.current) inputFotoRef.current.value = ''
   }
 
   const handleFotoChange = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -65,8 +91,8 @@ export function AdminCardapio() {
     setComprimindoFoto(true)
     setErro(null)
     try {
-      const fotoUrl = await comprimirImagem(arquivo)
-      setForm((f) => ({ ...f, fotoUrl }))
+      const dataUrl = await comprimirImagem(arquivo)
+      setFotoArquivo(dataUrl)
     } catch (erroCompressao) {
       setErro(
         erroCompressao instanceof Error
@@ -94,6 +120,12 @@ export function AdminCardapio() {
       setErro('Informe um preço maior que zero.')
       return
     }
+    if (linkInvalido) {
+      setErro('Cole um link válido começando com http:// ou https://')
+      return
+    }
+
+    const fotoUrl = fotoAtual.trim()
 
     setSalvando(true)
     try {
@@ -104,7 +136,7 @@ export function AdminCardapio() {
           categoria: form.categoria,
           disponivel: form.disponivel,
           descricao,
-          fotoUrl: form.fotoUrl,
+          fotoUrl,
         })
         cancelarEdicao()
       } else {
@@ -114,10 +146,11 @@ export function AdminCardapio() {
           categoria: form.categoria,
           disponivel: true,
           ...(descricao ? { descricao } : {}),
-          ...(form.fotoUrl ? { fotoUrl: form.fotoUrl } : {}),
+          ...(fotoUrl ? { fotoUrl } : {}),
         })
         setForm(FORM_VAZIO)
-        if (inputFotoRef.current) inputFotoRef.current.value = ''
+        setModoFoto('upload')
+        limparFoto()
       }
     } catch (erroSalvar) {
       setErro(erroSalvar instanceof Error ? erroSalvar.message : 'Não foi possível salvar o produto.')
@@ -220,33 +253,75 @@ export function AdminCardapio() {
 
         <div>
           <label className="text-xs font-semibold text-zinc-500">Foto (opcional)</label>
+
+          <div className="mb-2 flex gap-1 rounded-lg bg-zinc-100 p-1 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setModoFoto('upload')}
+              className={`flex-1 rounded-md py-1.5 transition ${
+                modoFoto === 'upload' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'
+              }`}
+            >
+              📁 Enviar arquivo
+            </button>
+            <button
+              type="button"
+              onClick={() => setModoFoto('link')}
+              className={`flex-1 rounded-md py-1.5 transition ${
+                modoFoto === 'link' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'
+              }`}
+            >
+              🔗 Link da imagem
+            </button>
+          </div>
+
           <div className="flex items-center gap-3">
-            {form.fotoUrl && (
-              <img
-                src={form.fotoUrl}
+            {fotoAtual && (
+              <ImagemProduto
+                src={fotoAtual}
                 alt="Pré-visualização"
                 className="h-14 w-14 shrink-0 rounded-lg border border-zinc-200 object-cover"
               />
             )}
-            <div className="flex flex-1 flex-wrap items-center gap-2">
-              <input
-                ref={inputFotoRef}
-                type="file"
-                accept="image/*"
-                disabled={comprimindoFoto}
-                onChange={(e) => void handleFotoChange(e)}
-                className="flex-1 text-xs text-zinc-500 file:mr-2 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-zinc-700"
-              />
-              {form.fotoUrl && !comprimindoFoto && (
-                <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, fotoUrl: '' }))}
-                  className="text-xs font-semibold text-red-500"
-                >
-                  Remover foto
-                </button>
+            <div className="flex-1">
+              {modoFoto === 'upload' ? (
+                <input
+                  ref={inputFotoRef}
+                  type="file"
+                  accept="image/*"
+                  disabled={comprimindoFoto}
+                  onChange={(e) => void handleFotoChange(e)}
+                  className="w-full text-xs text-zinc-500 file:mr-2 file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-xs file:font-semibold file:text-zinc-700"
+                />
+              ) : (
+                <input
+                  type="url"
+                  inputMode="url"
+                  value={fotoLink}
+                  onChange={(e) => setFotoLink(e.target.value)}
+                  placeholder="https://exemplo.com/foto.jpg"
+                  aria-invalid={linkInvalido ? 'true' : 'false'}
+                  className={`w-full rounded-lg border px-3 py-2 text-sm outline-none focus:border-orange-500 ${
+                    linkInvalido ? 'border-red-300' : 'border-zinc-200'
+                  }`}
+                />
               )}
-              {comprimindoFoto && <span className="text-xs text-zinc-400">Comprimindo imagem...</span>}
+
+              <div className="mt-1 flex items-center gap-3">
+                {fotoAtual && (
+                  <button
+                    type="button"
+                    onClick={limparFoto}
+                    className="text-xs font-semibold text-red-500"
+                  >
+                    Remover foto
+                  </button>
+                )}
+                {comprimindoFoto && <span className="text-xs text-zinc-400">Comprimindo imagem...</span>}
+                {linkInvalido && (
+                  <span className="text-xs text-red-500">Link inválido — use http:// ou https://</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -257,7 +332,7 @@ export function AdminCardapio() {
 
         <button
           type="submit"
-          disabled={salvando || comprimindoFoto}
+          disabled={salvando || comprimindoFoto || linkInvalido}
           className="self-start rounded-lg bg-orange-600 px-5 py-2 text-sm font-bold text-white disabled:opacity-60"
         >
           {salvando ? 'Salvando...' : emEdicao ? 'Salvar alterações' : 'Adicionar produto'}
@@ -275,7 +350,7 @@ export function AdminCardapio() {
                 <li key={produto.id} className="flex flex-wrap items-center justify-between gap-3 p-3">
                   <div className="flex items-center gap-3">
                     {produto.fotoUrl && (
-                      <img
+                      <ImagemProduto
                         src={produto.fotoUrl}
                         alt={produto.nome}
                         className="h-12 w-12 shrink-0 rounded-lg border border-zinc-200 object-cover"

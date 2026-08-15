@@ -12,7 +12,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase'
 import { getDataString } from './utils'
-import { tamanhoBase64EmBytes } from './imagem'
+import { ehDataUrl, tamanhoBase64EmBytes } from './imagem'
 import type {
   Configuracoes,
   FormaPagamento,
@@ -284,10 +284,20 @@ export async function fecharComanda({
 
 /** Limite de segurança bem acima do que a compressão client-side produz (~300KB). */
 const TAMANHO_MAXIMO_FOTO_BYTES = 700 * 1024
+/** Limite generoso para uma URL colada — nada a ver com o peso da imagem em si. */
+const TAMANHO_MAXIMO_LINK_CARACTERES = 2048
 
 function validarFotoUrl(fotoUrl: string | undefined): void {
-  if (fotoUrl && tamanhoBase64EmBytes(fotoUrl) > TAMANHO_MAXIMO_FOTO_BYTES) {
-    throw new Error('Imagem do produto muito grande. Escolha outra foto.')
+  if (!fotoUrl) return
+
+  // fotoUrl guarda tanto base64 comprimido (upload) quanto link externo (URL):
+  // o limite de bytes só faz sentido para o primeiro caso.
+  if (ehDataUrl(fotoUrl)) {
+    if (tamanhoBase64EmBytes(fotoUrl) > TAMANHO_MAXIMO_FOTO_BYTES) {
+      throw new Error('Imagem do produto muito grande. Escolha outra foto.')
+    }
+  } else if (fotoUrl.length > TAMANHO_MAXIMO_LINK_CARACTERES) {
+    throw new Error('Link da imagem muito longo.')
   }
 }
 

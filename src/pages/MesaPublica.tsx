@@ -5,6 +5,7 @@ import { useProdutos } from '../hooks/useProdutos'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
 import { Loading } from '../components/Loading'
 import { PixQRCode } from '../components/PixQRCode'
+import { ImagemProduto } from '../components/ImagemProduto'
 import { enviarPedidoCliente } from '../lib/firestore'
 import { agruparPorCategoria, formatarMoeda } from '../lib/utils'
 import type { Produto } from '../types'
@@ -196,7 +197,7 @@ export function MesaPublica() {
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
                             {produto.fotoUrl && (
-                              <img
+                              <ImagemProduto
                                 src={produto.fotoUrl}
                                 alt={produto.nome}
                                 className="h-12 w-12 shrink-0 rounded-lg object-cover"

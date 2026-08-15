@@ -5,6 +5,7 @@ import { useProdutos } from '../hooks/useProdutos'
 import { useAuth } from '../contexts/AuthContext'
 import { Loading } from '../components/Loading'
 import { Checkout } from '../components/Checkout'
+import { ImagemProduto } from '../components/ImagemProduto'
 import { adicionarItemMesa, excluirMesa, removerItemMesa } from '../lib/firestore'
 import { agruparPorCategoria, formatarMoeda } from '../lib/utils'
 
@@ -160,7 +161,7 @@ export function Comanda() {
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                           {produto.fotoUrl && (
-                            <img
+                            <ImagemProduto
                               src={produto.fotoUrl}
                               alt={produto.nome}
                               className="h-10 w-10 shrink-0 rounded-lg object-cover"
