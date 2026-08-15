@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useMesa } from '../hooks/useMesa'
 import { useProdutos } from '../hooks/useProdutos'
 import { useConfiguracoes } from '../hooks/useConfiguracoes'
@@ -318,6 +318,12 @@ export function MesaPublica() {
           </div>
         )}
       </main>
+
+      <footer className="px-4 py-6 text-center">
+        <Link to="/privacidade" className="text-xs text-zinc-400 hover:text-zinc-600">
+          Política de Privacidade
+        </Link>
+      </footer>
 
       {aba === 'cardapio' && itensCarrinho > 0 && (
         <div className="fixed inset-x-0 bottom-0 z-10 border-t border-zinc-200 bg-white p-4">

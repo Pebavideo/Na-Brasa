@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { FirebaseError } from 'firebase/app'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -88,6 +88,13 @@ export function Login() {
         >
           {enviando ? 'Entrando...' : 'Entrar'}
         </button>
+
+        <Link
+          to="/privacidade"
+          className="mt-4 block text-center text-xs text-zinc-400 hover:text-zinc-600"
+        >
+          Política de Privacidade
+        </Link>
       </form>
     </div>
   )

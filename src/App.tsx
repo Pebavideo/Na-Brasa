@@ -9,6 +9,7 @@ import { Comanda } from './pages/Comanda'
 import { MesaPublica } from './pages/MesaPublica'
 import { Caixa } from './pages/Caixa'
 import { Admin } from './pages/Admin'
+import { PrivacyPolicy } from './pages/PrivacyPolicy'
 
 function App() {
   return (
@@ -18,6 +19,8 @@ function App() {
           {/* Rotas públicas */}
           <Route path="/login" element={<Login />} />
           <Route path="/mesa/:mesaId" element={<MesaPublica />} />
+          <Route path="/privacidade" element={<PrivacyPolicy />} />
+          <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
 
           {/* Rotas operacionais (equipe autenticada) */}
           <Route element={<ProtectedRoute />}>
