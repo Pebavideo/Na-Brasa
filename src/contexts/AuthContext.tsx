@@ -13,6 +13,7 @@ import {
   type User,
 } from 'firebase/auth'
 import { auth } from '../firebase'
+import { revogarAutorizacaoPin } from '../lib/pinGerente'
 import { SUPER_ADMIN_EMAIL } from '../types'
 
 const ATENDENTE_STORAGE_KEY = 'na-brasa:atendente'
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     limparAtendente()
+    revogarAutorizacaoPin()
     await signOut(auth)
   }
 

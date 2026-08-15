@@ -8,6 +8,7 @@ import {
   normalizarChavePix,
   validarChavePix,
 } from '../../lib/mascaras'
+import { formatoPinValido } from '../../lib/pinGerente'
 import type { TipoChavePix } from '../../types'
 
 const TIPOS_CHAVE: TipoChavePix[] = ['CPF', 'CNPJ', 'TELEFONE', 'EMAIL', 'ALEATORIA']
@@ -34,6 +35,7 @@ const vazio = {
   chavePixExibicao: '',
   titularPix: '',
   cidadePix: '',
+  pinGerente: '',
 }
 
 export function AdminConfig() {
@@ -53,6 +55,7 @@ export function AdminConfig() {
           : '',
         titularPix: config.titularPix ?? '',
         cidadePix: config.cidadePix ?? '',
+        pinGerente: config.pinGerente ?? '',
       })
     }
   }, [config])
@@ -74,6 +77,7 @@ export function AdminConfig() {
     const nomeLoja = form.nomeLoja.trim()
     const titularPix = form.titularPix.trim()
     const cidadePix = form.cidadePix.trim()
+    const pinGerente = form.pinGerente.trim()
 
     if (!nomeLoja || !titularPix || !cidadePix) {
       setErro('Preencha nome da loja, titular e cidade.')
@@ -86,6 +90,11 @@ export function AdminConfig() {
       return
     }
 
+    if (pinGerente && !formatoPinValido(pinGerente)) {
+      setErro('O PIN de gerente deve ter de 4 a 6 números.')
+      return
+    }
+
     setSalvando(true)
     try {
       await atualizarConfiguracoes({
@@ -94,6 +103,7 @@ export function AdminConfig() {
         chavePix: normalizarChavePix(form.tipoChavePix, form.chavePixExibicao),
         titularPix,
         cidadePix,
+        pinGerente,
       })
       setSalvo(true)
       setTimeout(() => setSalvo(false), 2000)
@@ -108,6 +118,9 @@ export function AdminConfig() {
   const erroChaveEmTempoReal = form.chavePixExibicao
     ? validarChavePix(form.tipoChavePix, form.chavePixExibicao)
     : null
+
+  const erroPinEmTempoReal =
+    form.pinGerente && !formatoPinValido(form.pinGerente) ? 'O PIN deve ter de 4 a 6 números.' : null
 
   if (loading) return <Loading texto="Carregando configurações..." />
 
@@ -183,13 +196,39 @@ export function AdminConfig() {
         </div>
       </div>
 
+      <div className="border-t border-zinc-100 pt-3">
+        <label className="text-xs font-semibold text-zinc-500">
+          🔒 PIN de Gerente (protege as áreas Caixa e Admin)
+        </label>
+        <input
+          inputMode="numeric"
+          maxLength={6}
+          value={form.pinGerente}
+          onChange={(e) =>
+            setForm((f) => ({ ...f, pinGerente: e.target.value.replace(/\D/g, '').slice(0, 6) }))
+          }
+          placeholder="4 a 6 números"
+          aria-invalid={erroPinEmTempoReal ? 'true' : 'false'}
+          className={`w-full max-w-[160px] rounded-lg border px-3 py-2 text-sm outline-none focus:border-orange-500 ${
+            erroPinEmTempoReal ? 'border-red-300' : 'border-zinc-200'
+          }`}
+        />
+        {erroPinEmTempoReal ? (
+          <p className="mt-1 text-xs text-red-500">{erroPinEmTempoReal}</p>
+        ) : (
+          <p className="mt-1 text-xs text-zinc-400">
+            Deixe em branco para não exigir PIN ao acessar Caixa e Admin.
+          </p>
+        )}
+      </div>
+
       {erro && (
         <p className="rounded-lg bg-red-50 p-2 text-center text-sm text-red-600">{erro}</p>
       )}
 
       <button
         type="submit"
-        disabled={salvando || !!erroChaveEmTempoReal}
+        disabled={salvando || !!erroChaveEmTempoReal || !!erroPinEmTempoReal}
         className="mt-2 rounded-lg bg-orange-600 px-4 py-3 font-bold text-white disabled:opacity-60"
       >
         {salvo ? 'Salvo!' : salvando ? 'Salvando...' : 'Salvar configurações'}

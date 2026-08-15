@@ -24,6 +24,8 @@ export interface Configuracoes {
   titularPix: string
   cidadePix: string
   atendentes: string[]
+  /** PIN numérico (4 a 6 dígitos) exigido para acessar Caixa/Admin. */
+  pinGerente?: string
 }
 
 export interface Produto {

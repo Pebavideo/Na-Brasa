@@ -1,6 +1,7 @@
 import { Link, Navigate, Outlet } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { Loading } from './Loading'
+import { PinGerenteGate } from './PinGerenteGate'
 
 export function AdminRoute() {
   const { user, loading, isSuperAdmin } = useAuth()
@@ -28,5 +29,9 @@ export function AdminRoute() {
     )
   }
 
-  return <Outlet />
+  return (
+    <PinGerenteGate>
+      <Outlet />
+    </PinGerenteGate>
+  )
 }
