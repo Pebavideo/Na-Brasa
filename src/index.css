@@ -20,3 +20,31 @@ body {
   -moz-osx-font-smoothing: grayscale;
   background-color: #f4f4f5;
 }
+
+/*
+ * Impressão de relatórios: isola o conteúdo de #relatorio-impressao,
+ * escondendo cabeçalho, navegação, botões e qualquer outro elemento da tela.
+ * O layout interno é sempre em coluna única (ver Caixa.tsx), o que mantém a
+ * leitura legível tanto em folha A4 quanto em bobinas de impressora térmica.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  #relatorio-impressao,
+  #relatorio-impressao * {
+    visibility: visible;
+  }
+
+  #relatorio-impressao {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+}

@@ -26,3 +26,17 @@ export function formatarDataHora(data: Date): string {
     minute: '2-digit',
   })
 }
+
+export function formatarHora(data: Date): string {
+  return data.toLocaleTimeString('pt-BR', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+/** Converte "YYYY-MM-DD" para "DD/MM/YYYY" para exibição. */
+export function formatarDataBR(dataString: string): string {
+  const [ano, mes, dia] = dataString.split('-')
+  return `${dia}/${mes}/${ano}`
+}
